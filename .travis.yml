@@ -1,0 +1,56 @@
+language: haskell
+
+sudo: false
+cache:
+  directories:
+    - $HOME/.stack/
+
+branches:
+  only:
+    - source
+
+env:
+  global:
+    - GH_NAME="otf.travis"
+    - secure: "SMjHhr3mFAQjcTFcvIA0FiP4f0urNvo6NLE6UCXIBwa9dSmqaR+Z+YtQtaxeltnR8H48+3DGu5MaHXpUmSNaAH1fWDeF3Idrj5PV9zD0ieTOAa4wnrgTCWnqo7+IizBoJuLpV/kfzZDvsSwjsM+1okFgsJEK3cD9TUPpKKxt3CHHq6kxYYD2HQGs9qxwkdInmCb8K6d9F+mAGCY+awOibRJUyymVZB8C17qk/TOYhAef0RenYdU9GJXbse4EvMfuaPyFbIpqufCDamdjdlOSETn7Q4bHdnsYzxXPULiwzhkqZ5o2ToHI2Fes36KqPt83l4LNzKcdNHg50Zfq7RfyQJXpzD57WYuOgqy3G5XtBQxfNr8fcgzDuY7/VMaseGnAAvg9Nf6xvMZTF2w8aiy+TIys7eCRmVD+N4qfxh4lV3VkoqlF8S91RzKkpL+28piBFVcDOBQxUhYNDhSwx7h4NOlJSmp+o07hCARkupiCkcAxGmL23hWEtbAdHGIaNlfG0AntEz3YDLhLntBcSUIm6B93mp5Oc6jYXsYIO0K4L7hxHoVpz/0AvEmVzPEMlw7FC/TeYh9Hk/mhWuPVIHunoiNspfR28bWZc6k8cSvTDWbQGlG4ToJMkstxy/Ms0RvxH9o6LPlJSgNDXKhFyXzvkVb8GHInB1Rw3Yr6TsU0yoI=" # token
+    - secure: "d2zvLmNnUTP4BHKQPzRBvp6JtXBec8S2apE7NCOugbKHbEb8Py/JKoMb2RQgU9DYtOD0FP5WpRxKvZ2bmhsfnv2R2WgQDCb0dW3ExSKpHXpj9f/wjIxELhiXHUST4Uzxssw7HakJ4nvtCYBHbelOpV8L+jy/kDxDssl4inrhsr/p17MXXqxqHfKRWFjZLQgE5VKUGbt07+zvLT3s3OXu0NeT1YRzgHoEm75VDwDSWQ1npgJCAeqsRfrT/L9Qew6XRjs1U0uMBfPAO3bqJI9Y979kjWMPfnp+wpe5GuDahtCMa5L4Emfn6V/1yhTUZHvM16CHHYqxKXqsiSVaum7KBWrHF5Av1cFfWobQbcq5eEl2PD6E6LwlXj7VmUzvA84zuUzpRXoaBcTqMPWoV6qiebCWEPi4Gi2CL4arUTQtSrL2FwC++maa0JbPuDDlIxK4Fsvulz9ZLrtkyH25aAB7184h5DgHZKdqkc5+mgFV5l/JxVU1mjsFBqSPHUwtdQQy3GMWyRx8y+odlcTSqm4utdx3h81tL4HWECfKDq548k4IOxyjAqzdd6TDqS2prb5dHv+2rdvCzSOmF4xGXO+hVIWjFKxv84KyrjdJUv7s/h3402sIMdGuRvtds7f8RxqlAsWYFCfayRyzsqYeY9ct5lJKfA3CZIskRgva0/WBiwE=" # email
+
+before_install:
+  - mkdir -p ~/.local/bin
+  - export PATH=~/.local/bin:$PATH
+  - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.2.0/stack-0.1.2.0-x86_64-linux.gz | gunzip > ~/.local/bin/stack
+  - chmod a+x ~/.local/bin/stack
+  - export PATH=~/travis/.stack/programs/x86_64-linux/ghc-7.10.2/bin:$PATH
+  - git submodule foreach --recursive 'git checkout master; git ls-files | grep -v README | grep -v CNAME | xargs -r git rm'
+
+addons:
+  apt:
+    sources:
+      - hvr-ghc
+    packages:
+      - ghc-7.10.2
+
+install:
+  - stack setup --no-terminal
+  - stack build --only-snapshot --no-terminal
+
+before_script:
+  - git config --global user.name "$GH_NAME"
+  - git config --global user.email "$GH_EMAIL"
+
+script:
+  - stack build --no-terminal
+  - stack ghc site.hs
+  - ./site build
+
+after_success:
+  - cd _site
+  - export REMOTE=$(git config remote.origin.url | sed 's/.*:\/\///')
+  - git remote add github https://${GH_TOKEN}@${REMOTE}
+  - git add ./*
+  - git status
+  - git commit -m "Built by Travis (build $TRAVIS_BUILD_NUMBER)"
+  - git push --quiet github master:master
+
+notifications:
+  email: false
